@@ -1,28 +1,15 @@
 # APK 构建状态
 
-当前 Windows 环境未安装 `buildozer`、Java、Gradle、Android SDK/NDK，WSL/Ubuntu 也尚未完成可用初始化，因此本机暂时无法直接生成真实 `.apk` 安装包。
+当前 Windows 环境没有完整的 Buildozer、Android SDK/NDK 构建链，因此本机不直接生成 APK。项目已提供 GitHub Actions 云端构建方案。
 
-更简单的生成方式已经加入项目：使用 GitHub Actions 云端构建。把项目上传到 GitHub 后，进入 `Actions`，运行 `Build Android APK` 工作流，构建完成后从 `Artifacts` 下载 APK。
+已包含的关键文件：
 
-本项目已经提供：
-
-- `main.py`：北洋闪传新版精美 UI + 完整文件速传功能。
-- `main.py`：电脑端默认启动北洋闪传网页控制台，操作步骤与手机端一致，支持 TCP 直连发送/接收、保存目录设置和 SHA-256 校验。
-- `main.py`：已优化传输超时、连接重试、断点续传提示、接收落盘和 Android 文件索引刷新，减少发送失败和文件管理器延迟显示问题。
-- `main.py`：Android 发送端默认使用本机“文档安全选择页”，由浏览器选择 PDF、Word、压缩包等文档并上传回 App，绕开 Kivy/pyjnius 直接读取文档 Provider 时可能闪退的问题；对方 IP 会自动保存，重启后继续保留。
-- `buildozer.spec`：Android APK 打包配置。
-- `build_apk_linux.sh`：Linux / WSL 下的一键构建脚本。
+- `main.py`：北洋闪传 Android 界面 + 电脑端网页控制台 + TCP 文件传输逻辑。
+- `android_src/org/tju/challenge/beiyangflashtransfer/NativeFileBridge.java`：Android 原生文档读取桥接，PDF、Word、压缩包等文件不再经过浏览器网页选择。
+- `buildozer.spec`：APK 打包配置，已经接入 `android_src`。
 - `.github/workflows/build-apk.yml`：GitHub Actions 云端 APK 构建流程。
+- `assets/icon.png`：蓝色系应用图标。
 
-在安装好 Linux/WSL + Java + Android SDK/NDK + Buildozer 后，进入项目目录执行：
+上传到 GitHub 时，请把本目录解压后的内容直接放在仓库根目录，尤其不要漏掉隐藏目录 `.github` 和 Java 源码目录 `android_src`。
 
-```bash
-chmod +x build_apk_linux.sh
-./build_apk_linux.sh
-```
-
-成功后 APK 会生成在：
-
-```text
-bin/*.apk
-```
+构建成功后，APK 会在 Actions 运行结果的 `Artifacts` 中显示为 `BeiyangFlash-debug-apk`。

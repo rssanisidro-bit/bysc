@@ -809,7 +809,7 @@ class FileTransferApp(App):
         card.add_widget(options)
 
         save_hint = MutedLabel(
-            text="手机端选择 PDF/Word 会打开文档安全选择页；选好后返回 App 即可发送。接收建议保存到“下载/北洋闪传”。",
+            text="手机端选择 PDF/Word 会打开系统文件选择器，并由 Android 原生层读取；接收建议保存到“下载/北洋闪传”。",
             size_hint_y=None,
             height=dp(52),
         )
@@ -927,9 +927,9 @@ class FileTransferApp(App):
 
     def open_file_picker(self):
         if platform == "android":
-            if self.open_android_safe_upload_picker():
+            if self.open_android_document_picker():
                 return
-            self.log("文档安全选择页不可用，已改用内置稳定选择器。若看不到文档，请把文件放到 Download 或 Documents 后再选。")
+            self.log("系统文档选择器不可用，已改用内置文件选择器。若看不到文档，请把文件放到 Download 或 Documents 后再选。")
 
         chooser = FileChooserIconView(path=default_file_path())
         popup = self.make_picker_popup("选择要发送的文件", chooser)
@@ -991,14 +991,9 @@ class FileTransferApp(App):
             from jnius import autoclass
 
             PythonActivity = autoclass("org.kivy.android.PythonActivity")
-            Intent = autoclass("android.content.Intent")
+            NativeFileBridge = autoclass("org.tju.challenge.beiyangflashtransfer.NativeFileBridge")
             activity = PythonActivity.mActivity
-            intent = Intent(Intent.ACTION_OPEN_DOCUMENT)
-            intent.addCategory(Intent.CATEGORY_OPENABLE)
-            intent.setType("*/*")
-            intent.putExtra(Intent.EXTRA_ALLOW_MULTIPLE, False)
-            intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-            intent.addFlags(Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION)
+            intent = NativeFileBridge.createOpenDocumentIntent()
             try:
                 android_activity.unbind(on_activity_result=self.on_android_activity_result)
             except Exception:
@@ -1042,9 +1037,27 @@ class FileTransferApp(App):
             if not uri:
                 self.on_file_selection_failed("系统没有返回可读取的文件地址")
                 return
-            self.on_native_file_selected([uri])
+
+            self.set_status("正在读取所选文件", COLORS["primary"])
+            self.log("正在由 Android 原生层读取所选文件，请稍等...")
+            threading.Thread(target=self.copy_android_uri_worker, args=(uri,), daemon=True).start()
         except Exception as exc:
             self.on_file_selection_failed(f"文件选择回调失败：{exc}")
+
+    def copy_android_uri_worker(self, uri):
+        try:
+            from jnius import autoclass
+
+            PythonActivity = autoclass("org.kivy.android.PythonActivity")
+            NativeFileBridge = autoclass("org.tju.challenge.beiyangflashtransfer.NativeFileBridge")
+            selected = NativeFileBridge.copyUriToCache(
+                PythonActivity.mActivity,
+                uri,
+                "beiyang_flash_picked",
+            )
+            self.apply_selected_file(str(selected), True)
+        except Exception as exc:
+            self.on_file_selection_failed(f"文件读取失败：{exc}")
 
     def open_folder_picker(self):
         if platform == "android":
